@@ -7,4 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "pip>=25.1.1",
     "torch>=2.7.0",
+    "tqdm>=4.67.1",
+    "types-tqdm>=4.67.0.20250516",
+    "wandb>=0.20.1",
 ]
