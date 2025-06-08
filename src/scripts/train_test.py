@@ -1,31 +1,37 @@
 import argparse
 import os
+from pathlib import Path
+
 import torch
-import torch.nn as nn
 import wandb
-from src.data.mnist_dataset import MNISTDatasetManager
+
+from src.data.dataset_manager import DatasetManager, DatasetType
 from src.models.model_type import NoPropModelType
 from src.models.model_wrapper import NoPropModelWrapper
+from src.models.noprop_ct import NoPropCT
 from src.models.noprop_dt import NoPropDT
 from src.utils.device import DeviceManager
-from src.utils.model_config import NoPropModelConfig
+from src.utils.model_config import NoPropCTConfig, NoPropDTConfig
 from src.utils.test_utils import test
 from src.utils.train_config import NoPropTrainConfig
 from src.utils.train_utils import get_scheduler, train
 
 
-def train_mnist(
-    wrapper: NoPropModelWrapper,
-):
+def train_mnist(wrapper: NoPropModelWrapper, dataset_path: Path):
     """
     Trains the NoProp model on the MNIST dataset.
 
     :param wrapper: Model wrapper containing the model and device information.
+    :param dataset_path: Path to the MNIST dataset.
     """
 
     train_config = wrapper.train_config
 
-    train_dataset, val_dataset, test_dataset = MNISTDatasetManager.get_datasets()
+    train_dataset, val_dataset, test_dataset, number_of_classes = (
+        DatasetManager.get_datasets(
+            wrapper.train_config.dataset_type, wrapper.train_config.dataset_path
+        )
+    )
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -49,21 +55,22 @@ def train_mnist(
         num_workers=wrapper.train_config.workers,
     )
 
-    # TODO maybe change optimizer, criterion and scheduler types
-    optimizer = torch.optim.Adam(
+    wrapper.initialize_with_prototypes(train_loader)
+
+    # TODO scheduler currently unused
+    # maybe use it or remove it
+    optimizer = torch.optim.AdamW(
         wrapper.model.parameters(),
         lr=train_config.lr,
         weight_decay=train_config.weight_decay,
     )
-    criterion = nn.MSELoss()
     scheduler = get_scheduler(
-        optimizer, total_steps=(wrapper.train_config.epochs * len(train_loader)) // 10
+        optimizer, total_steps=(wrapper.train_config.epochs * len(train_loader))
     )
 
     train(
         wrapper,
         optimizer,
-        criterion,
         scheduler,
         train_loader,
         validation_loader,
@@ -78,32 +85,64 @@ def main():
     Main function to set up the training environment and start training the model.
     """
 
-    # setup MPS fallback for PyTorch if training on Apple Silicon
-    os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-
     # Set up argument parser
-    parser = argparse.ArgumentParser(description="Train a machine learning model.")
+    parser = argparse.ArgumentParser(description="Train a NoProp model.")
     parser.add_argument(
-        "--model_path",
+        "--save_model_path",
         type=os.PathLike,
         required=True,
         help="Path where the model will be saved.",
         example="mnist_model.pt",
     )
     parser.add_argument(
-        "--wandb-project",
-        type=str,
+        "--model_type",
+        type=NoPropModelType,
+        choices=list(NoPropModelType),
         required=True,
-        help="Name for the Weights & Biases project.",
-        example="NoProp MNIST",
+        help="The type of NoProp model to train.",
+        example="CT",
+    )
+    parser.add_argument(
+        "--dataset-type",
+        type=DatasetType,
+        choices=list(DatasetType),
+        required=True,
+        help="Name of the dataset",
+        example="MNIST",
+    )
+    parser.add_argument(
+        "--dataset-path",
+        type=Path,
+        required=True,
+        help="Path to the dataset",
+        example="./data/mnist",
     )
     args = parser.parse_args()
 
     device = DeviceManager.get_device()
-    model_config = NoPropModelConfig()
-    train_config = NoPropTrainConfig(args.model_path)
 
-    with wandb.init(project=""):
+    match args.model_type:
+        case NoPropModelType.NO_PROP_CT:
+            model_config = NoPropCTConfig()
+            model = NoPropCT(model_config, device)
+        case NoPropModelType.NO_PROP_DT:
+            model_config = NoPropDTConfig()
+            model = NoPropDT(model_config, device)
+        case NoPropModelType.NO_PROP_FM:
+            #     model_config = NoPropFMConfig()
+            #     model = NoPropFM(model_config, device)
+            raise NotImplementedError(f"Unsupported model type {args.model_type}")
+        case _:
+            raise NotImplementedError(f"Unsupported model type {args.model_type}")
+
+    train_config = NoPropTrainConfig(
+        args.save_model_path, args.dataset_type, args.dataset_path
+    )
+
+    project_name = (
+        "NoProp" + f"_{args.model_type.value}" + f"_{args.dataset_type.value}"
+    )
+    with wandb.init(project=project_name):
         wandb.config.update(
             {
                 "learning_rate": train_config.lr,
@@ -111,24 +150,15 @@ def main():
                 "batch_size": train_config.batch_size,
                 "weight_decay": train_config.weight_decay,
                 "workers": train_config.workers,
-                "model_path": args.model_path,
+                "save_model_path": args.save_model_path,
+                "dataset_path": args.dataset_path,
+                "dataset": args.dataset_type.value,
             }
         )
 
-        match model_config.type:
-            case NoPropModelType.NO_PROP_CT:
-                model = NoPropDT(device)
-            # case NoPropModelType.NO_PROP_DT:
-            #     model = NoPropDT(device)
-            # case NoPropModelType.NO_PROP_FM:
-            #     model = NoPropDT(device)
-            case _:
-                raise ValueError(f"Unsupported model type: {model_config.type}")
-
-        wrapper = NoPropModelWrapper(model, train_config, device)
-
         wandb.watch(model)
 
-        train_mnist(wrapper)
+        wrapper = NoPropModelWrapper(model, train_config)
+        train_mnist(wrapper, args.dataset_path)
 
         wandb.finish()

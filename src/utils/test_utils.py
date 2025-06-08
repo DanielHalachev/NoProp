@@ -1,8 +1,9 @@
 import torch
-from tqdm import tqdm
-from models.model_wrapper import NoPropModelWrapper  # type:ignore
-from torch.utils.data import DataLoader
 import wandb
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+from models.model_wrapper import NoPropModelWrapper  # type:ignore
 
 
 def test(
@@ -22,15 +23,14 @@ def test(
     wrapper.model.eval()
 
     with torch.no_grad():
-        for src, labels, trg in tqdm(dataloader):
-            total += len(labels)  # Batch size
+        for src, trg in tqdm(dataloader):
+            total += len(trg)  # batch size
             src = src.to(wrapper.device)
             trg = trg.to(wrapper.device)
 
-            predictions = wrapper.predict(src)  # List of predicted classes
-            for pred, label in zip(predictions, labels):
-                if pred == label:
-                    correct += 1
+            correct, total, predictions = wrapper.model.test_step(
+                src, trg, wrapper.train_config.eta
+            )
 
     test_accuracy = 100 if total == 0 else (correct * 100) / total
 

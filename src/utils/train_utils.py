@@ -1,15 +1,13 @@
-import torch
-from tqdm import tqdm
-from pathlib import Path
-import wandb
-from torch.amp.autocast_mode import autocast
-from torch.amp.grad_scaler import GradScaler
-from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingLR
-from torch.utils.data import DataLoader
-from src.models.base_model import NoPropModel
-from src.models.model_wrapper import NoPropModelWrapper
-from utils.test_utils import test  # type:ignore
 import random
+from pathlib import Path
+
+import torch
+import wandb
+from torch.optim.lr_scheduler import CosineAnnealingLR, LambdaLR
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+from src.models.model_wrapper import NoPropModelWrapper
 
 
 def get_scheduler(optimizer, total_steps, warmup_steps=5000):
@@ -33,7 +31,7 @@ def get_scheduler(optimizer, total_steps, warmup_steps=5000):
 
 
 def train_epoch(
-    wrapper: NoPropModelWrapper, optimizer, scheduler, criterion, dataloader: DataLoader
+    wrapper: NoPropModelWrapper, optimizer, scheduler, dataloader: DataLoader
 ):
     """
     Trains the model for one epoch.
@@ -46,52 +44,22 @@ def train_epoch(
     :return: Average training loss for the epoch.
     """
 
-    # TODO maybe drop autocast and clipping
     wrapper.model.train()
     training_loss = 0.0
-    counter = 0
-    scaler = GradScaler()
-    for src, _, trg in tqdm(dataloader):
+    for src, trg in tqdm(dataloader):
         src = src.to(wrapper.device)
         trg = trg.to(wrapper.device)
 
-        counter += 1
-
-        optimizer.zero_grad()
-        with autocast(wrapper.device.type):
-            output = wrapper.model(src, trg[:-1])
-            loss = criterion(output.view(-1, output.shape[-1]), trg[1:, :].view(-1))
-        scaler.scale(loss).backward()
-        torch.nn.utils.clip_grad_norm_(wrapper.model.parameters(), max_norm=1.0)
-        scaler.step(optimizer)
-        scaler.update()
-        scheduler.step()
-        training_loss += loss.item()
-    return training_loss / counter
-
-
-def calculate_validation_loss(model: NoPropModel, criterion, src, trg):
-    """
-    Calculates the validation loss for a given batch of data.
-
-    :param model: The model to evaluate.
-    :param criterion: The loss function to use.
-    :param src: Source input tensor.
-    :param trg: Target output tensor.
-    :return: The validation loss for the batch.
-    """
-
-    output = model(src, trg[:-1, :])
-    loss = criterion(
-        output.view(-1, output.shape[-1]), torch.reshape(trg[1:, :], (-1,))
-    )
-    return loss.item()
+        training_loss += wrapper.model.train_step(
+            src, trg, optimizer, wrapper.train_config.eta
+        ) * src.size(0)
+    avg_loss = training_loss / len(dataloader.dataset)  # type: ignore
+    return avg_loss
 
 
 def validate_epoch(
     epoch: int,
     wrapper: NoPropModelWrapper,
-    criterion,
     dataloader: DataLoader,
 ):
     """
@@ -99,13 +67,12 @@ def validate_epoch(
 
     :param epoch: Current epoch number.
     :param wrapper: Model wrapper containing the model and device information.
-    :param criterion: Loss function to evaluate the model.
     :param dataloader: DataLoader for the validation dataset.
-    :return: Average validation loss and a list of records for logging.
+    :return: Tuple containing the average validation loss, accuracy, and records of predictions.
     """
-
     validation_loss = 0.0
-    counter = 0
+    correct = 0
+    total = 0
     wrapper.model.eval()
 
     logged_samples = 0
@@ -118,22 +85,24 @@ def validate_epoch(
             src = src.to(wrapper.device)
             trg = trg.to(wrapper.device)
 
-            batch_size = len(trg)
-            counter += batch_size
-
-            validation_loss += (
-                calculate_validation_loss(wrapper.model, criterion, src, trg)
-                * batch_size
+            validation_loss_temp, correct_temp, total_temp, predictions = (
+                wrapper.model.validate_step(
+                    src,
+                    trg,
+                    wrapper.train_config.eta,
+                    wrapper.train_config.inference_number_of_steps,
+                )
             )
-
-            predictions = wrapper.predict(src)  # List of predicted classes
+            validation_loss += validation_loss_temp
+            correct += correct_temp
+            total += total_temp
 
             # Calculate the probability of logging a sample
             remaining_samples_to_log = total_samples_to_log - logged_samples
             if remaining_samples_to_log > 0:
-                probability = remaining_samples_to_log / (counter - logged_samples)
+                probability = remaining_samples_to_log / (total - logged_samples)
 
-                for i, (pred, label) in enumerate(zip(predictions, trg)):
+                for i, (pred, label) in enumerate(zip(predictions.tolist(), trg.toli)):
                     if (
                         logged_samples < total_samples_to_log
                         and random.random() < probability
@@ -141,8 +110,10 @@ def validate_epoch(
                         records.append((epoch, src[i], label.item(), pred))
                         logged_samples += 1
 
+    avg_loss = validation_loss / len(dataloader.dataset)  # type: ignore
     return (
-        validation_loss / counter,
+        validation_loss,
+        correct / total,
         records,
     )
 
@@ -150,7 +121,6 @@ def validate_epoch(
 def train(
     wrapper: NoPropModelWrapper,
     optimizer,
-    criterion,
     scheduler,
     train_loader,
     validation_loader,
@@ -175,15 +145,16 @@ def train(
         print(
             f"====================================== EPOCH {(epoch + 1)} ======================================"
         )
-        train_loss = train_epoch(wrapper, optimizer, scheduler, criterion, train_loader)
-        validation_loss, records = validate_epoch(
-            epoch, wrapper, criterion, validation_loader
+        train_loss = train_epoch(wrapper, optimizer, scheduler, train_loader)
+        validation_loss, validation_acc, records = validate_epoch(
+            epoch, wrapper, validation_loader
         )
         wandb.log(
             {
                 "epoch": epoch,
                 "train_loss": train_loss,
                 "validation_loss": validation_loss,
+                "validation:acc": validation_acc,
             }
         )
 
@@ -199,8 +170,8 @@ def train(
         print(
             f"Epoch {epoch}: Train Loss={train_loss:.4f}, Val Loss={validation_loss:.4f}"
         )
-        if validation_loss < best_loss:
-            best_loss = validation_loss
+        if train_loss < best_loss:
+            best_loss = train_loss
             patience_counter = 0
             wrapper.save_model(wrapper.train_config.model_path)
             wandb.save(str(Path(wrapper.train_config.model_path)))

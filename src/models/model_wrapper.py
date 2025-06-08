@@ -1,6 +1,10 @@
 import os
+import random
+
 import torch
-from src.models.base_model import NoPropModel
+from torch.utils.data import DataLoader
+
+from src.models.base_model import BaseNoPropModel
 from src.utils.train_config import NoPropTrainConfig
 
 
@@ -10,7 +14,9 @@ class NoPropModelWrapper:
     """
 
     def __init__(
-        self, model: NoPropModel, train_config: NoPropTrainConfig, device: torch.device
+        self,
+        model: BaseNoPropModel,
+        train_config: NoPropTrainConfig,
     ) -> None:
         """
         Initializes the NoPropModelWrapper with an instance of a model, training configuration, and device.
@@ -21,7 +27,7 @@ class NoPropModelWrapper:
         """
         self.model = model
         self.train_config = train_config
-        self.device = device
+        self.device = model.device
 
     def save_model(self, path: os.PathLike | None = None):
         """
@@ -32,12 +38,66 @@ class NoPropModelWrapper:
         save_path = self.train_config.model_path if path is None else path
         self.model.save_model(save_path)
 
-    def predict(self, img) -> list[str]:
+    def initialize_with_prototypes(
+        self,
+        train_dataloader: DataLoader,
+    ) -> tuple[torch.Tensor, list[int]]:
         """
-        Makes a prediction using the model.
+        Initializes class prototypes by selecting representative embeddings for each class from random samples.
 
-        :param img: A batch of image inputs for prediction.
-        :return: A list of predicted class labels.
+        :param train_dataloader: DataLoader providing training data (images and labels).
+        :return: A tuple containing:
+                - A tensor of class prototypes (shape: [num_classes, embedding_dim]).
+                - A list of indexes corresponding to the selected prototype samples.
         """
-        # TODO make it work for batches
-        return []
+        self.model.eval()
+
+        num_classes = self.model.config.num_classes
+        max_samples_per_class = self.train_config.samples_per_class
+
+        # collect all features and labels from the dataloader
+        features_list, labels_list = [], []
+        with torch.no_grad():
+            for images, labels in train_dataloader:
+                features = self.model.backbone(images.to(self.device))
+                features_list.append(features.cpu())
+                labels_list.append(labels)
+        all_features = torch.cat(features_list, dim=0)  # [total_samples, embedding_dim]
+        all_labels = torch.cat(labels_list, dim=0)  # [total_samples, 1]
+
+        embedding_dimension = all_features.size(1)
+        class_prototypes = torch.zeros(
+            num_classes, embedding_dimension, device=self.device
+        )
+        prototype_sample_indexes: list[int] = []
+
+        # compute prototypes for each class
+        for class_id in range(num_classes):
+            # get indexes of samples belonging to the current class
+            class_sample_indexes = (
+                (all_labels == class_id).nonzero(as_tuple=True)[0].tolist()
+            )
+
+            # randomly select up to max_samples_per_class samples for the current class
+            selected_indexes = random.sample(
+                class_sample_indexes,
+                min(max_samples_per_class, len(class_sample_indexes)),
+            )
+
+            # extract embeddings for the selected samples
+            selected_embeddings = all_features[selected_indexes].to(self.device)
+
+            # compute pairwise distances [k, k] and find the most central sample
+            pairwise_distances = torch.cdist(selected_embeddings, selected_embeddings)
+            median_distances = pairwise_distances.median(dim=1).values  # [k]
+            central_sample_index = int(torch.argmin(median_distances).item())
+
+            # assign the most central embedding as the prototype for the current class
+            class_prototypes[class_id] = selected_embeddings[central_sample_index]
+
+            # store the index of the selected prototype sample
+            prototype_sample_indexes.append(selected_indexes[central_sample_index])
+
+        with torch.no_grad():
+            self.model.W_Embed.copy_(class_prototypes)
+        return class_prototypes, prototype_sample_indexes
