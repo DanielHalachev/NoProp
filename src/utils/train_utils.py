@@ -3,14 +3,15 @@ from pathlib import Path
 
 import torch
 import wandb
-from torch.optim.lr_scheduler import CosineAnnealingLR, LambdaLR
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import CosineAnnealingLR, LambdaLR, LRScheduler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from src.models.model_wrapper import NoPropModelWrapper
 
 
-def get_scheduler(optimizer, total_steps, warmup_steps=5000):
+def get_scheduler(optimizer, total_steps, warmup_steps=5000) -> LRScheduler:
     """
     Creates a learning rate scheduler that combines warmup and cosine annealing.
 
@@ -31,8 +32,13 @@ def get_scheduler(optimizer, total_steps, warmup_steps=5000):
 
 
 def train_epoch(
-    wrapper: NoPropModelWrapper, optimizer, scheduler, dataloader: DataLoader
-):
+    wrapper: NoPropModelWrapper,
+    optimizer: Optimizer,
+    scheduler: LRScheduler | None,
+    dataloader: DataLoader,
+    epoch: int,
+    total_epochs: int,
+) -> float:
     """
     Trains the model for one epoch.
 
@@ -43,24 +49,21 @@ def train_epoch(
     :param dataloader: DataLoader for the training dataset.
     :return: Average training loss for the epoch.
     """
-
-    wrapper.model.train()
-    training_loss = 0.0
-    for src, trg in tqdm(dataloader):
-        src = src.to(wrapper.device)
-        trg = trg.to(wrapper.device)
-
-        training_loss += wrapper.model.train_step(
-            src, trg, optimizer, wrapper.train_config.eta
-        ) * src.size(0)
-    avg_loss = training_loss / len(dataloader.dataset)  # type: ignore
-    return avg_loss
+    return wrapper.model.train_epoch(
+        optimizer,
+        scheduler,
+        dataloader,
+        wrapper.train_config.eta,
+        epoch,
+        total_epochs,
+    )
 
 
 def validate_epoch(
-    epoch: int,
     wrapper: NoPropModelWrapper,
     dataloader: DataLoader,
+    epoch: int,
+    total_epochs: int,
 ):
     """
     Validates the model for one epoch and logs the results.
@@ -70,6 +73,9 @@ def validate_epoch(
     :param dataloader: DataLoader for the validation dataset.
     :return: Tuple containing the average validation loss, accuracy, and records of predictions.
     """
+
+    wrapper.model.eval()
+
     validation_loss = 0.0
     correct = 0
     total = 0
@@ -81,7 +87,9 @@ def validate_epoch(
     records: list[tuple[int, object, str, str]] = []
 
     with torch.no_grad():
-        for src, trg in tqdm(dataloader):
+        for src, trg in tqdm(
+            dataloader, desc=f"Epoch {epoch + 1}/{total_epochs}", leave=False
+        ):
             src = src.to(wrapper.device)
             trg = trg.to(wrapper.device)
 
@@ -120,10 +128,10 @@ def validate_epoch(
 
 def train(
     wrapper: NoPropModelWrapper,
-    optimizer,
-    scheduler,
-    train_loader,
-    validation_loader,
+    optimizer: Optimizer,
+    scheduler: LRScheduler | None,
+    train_loader: DataLoader,
+    validation_loader: DataLoader,
 ):
     """
     Trains the model for a specified number of epochs, validating after each epoch.
@@ -136,47 +144,68 @@ def train(
     :param validation_loader: DataLoader for the validation dataset.
     """
 
+    # wandb records
     columns = ["Epoch", "Image", "Ground Truth", "Prediction"]
     all_records = []
     patience_counter = 0
+
+    total_epochs = wrapper.train_config.epochs
     best_loss = float("inf")
 
-    for epoch in range(wrapper.train_config.epochs):
-        print(
-            f"====================================== EPOCH {(epoch + 1)} ======================================"
-        )
-        train_loss = train_epoch(wrapper, optimizer, scheduler, train_loader)
-        validation_loss, validation_acc, records = validate_epoch(
-            epoch, wrapper, validation_loader
-        )
-        wandb.log(
-            {
-                "epoch": epoch,
-                "train_loss": train_loss,
-                "validation_loss": validation_loss,
-                "validation:acc": validation_acc,
-            }
-        )
+    with tqdm(total=total_epochs, desc="Training Progress", unit="epoch") as epoch_bar:
+        for epoch in range(1, total_epochs + 1):
+            train_loss = train_epoch(
+                wrapper,
+                optimizer,
+                scheduler,
+                train_loader,
+                epoch,
+                total_epochs,
+            )
+            validation_loss, validation_acc, records = validate_epoch(
+                wrapper, validation_loader, epoch, total_epochs
+            )
+            wandb.log(
+                {
+                    "epoch": epoch,
+                    "train_loss": train_loss,
+                    "validation_loss": validation_loss,
+                    "validation:acc": validation_acc,
+                }
+            )
 
-        all_records.extend(
-            [
-                (epoch, wandb.Image(img), label, pred)
-                for epoch, img, label, pred in records
-            ]
-        )
-        table = wandb.Table(columns=columns, data=all_records)
-        wandb.log({"validation_samples": table})
+            all_records.extend(
+                [
+                    (epoch, wandb.Image(img), label, pred)
+                    for epoch, img, label, pred in records
+                ]
+            )
+            table = wandb.Table(columns=columns, data=all_records)
+            wandb.log({"validation_samples": table})
 
-        print(
-            f"Epoch {epoch}: Train Loss={train_loss:.4f}, Val Loss={validation_loss:.4f}"
-        )
-        if train_loss < best_loss:
-            best_loss = train_loss
-            patience_counter = 0
-            wrapper.save_model(wrapper.train_config.model_path)
-            wandb.save(str(Path(wrapper.train_config.model_path)))
-        else:
-            patience_counter += 1
-        if patience_counter >= wrapper.train_config.patience:
-            print("Early stopping triggered")
-            break
+            epoch_bar.set_postfix(
+                {
+                    "Train Loss": f"{train_loss:.4f}",
+                    "Validation Loss": f"{validation_loss:.4f}",
+                    "Validation Acc": f"{validation_acc:.4f}",
+                }
+            )
+
+            # ATTENTION:
+            # keep the best model but not on validation loss
+            # but on training loss, as the paper suggests
+            # this is because there is no traditional backpropagation
+            # we teach each block in the model to denoise an input
+            # with a specific noise level instead
+            if train_loss < best_loss:
+                best_loss = train_loss
+                patience_counter = 0
+                wrapper.save_model(wrapper.train_config.model_path)
+                wandb.save(str(Path(wrapper.train_config.model_path)))
+            else:
+                patience_counter += 1
+            if patience_counter >= wrapper.train_config.patience:
+                print("Early stopping triggered")
+                break
+
+            epoch_bar.update(1)

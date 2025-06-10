@@ -18,8 +18,9 @@ class NoPropTrainConfig:
         dataset_path: Path,
         batch_size: int = 32,
         epochs: int = 20,
-        learning_rate: float = 0.01,
+        learning_rate: float = 1e-3,
         weight_decay: float = 0,
+        use_scheduler: bool = False,
         samples_per_class: int = 10,
         eta: float = 1.0,
         inference_number_of_steps=40,
@@ -30,13 +31,17 @@ class NoPropTrainConfig:
         """
         Initializes the training configuration for NoProp models.
 
+        :param model_path: Path to save the trained model.
         :param dataset_type: Type of dataset to be used for training (e.g., MNIST, CIFAR-10).
         :param dataset_path: Path to the dataset directory.
-        :param model_path: Path to save the trained model.
         :param batch_size: Number of samples per batch during training.
         :param epochs: Total number of epochs for training.
         :param learning_rate: Learning rate for the optimizer.
         :param weight_decay: Weight decay (L2 regularization) for the optimizer.
+        :param use_scheduler: Whether to use a learning rate scheduler.
+        :param samples_per_class: Number of samples per class for training.
+        :param eta: Hyperparameter for the NoProp models.
+        :param inference_number_of_steps: Number of steps for inference.
         :param patience: Number of epochs with no improvement after which training will be stopped.
         :param workers: Number of worker threads for data loading.
         :param logs_per_epoch: Number of logs to record per epoch.
@@ -49,6 +54,7 @@ class NoPropTrainConfig:
         self.epochs = epochs
         self.lr = learning_rate
         self.weight_decay = weight_decay
+        self.use_scheduler = use_scheduler
         self.samples_per_class = samples_per_class
         self.eta = eta
         self.inference_number_of_steps = inference_number_of_steps

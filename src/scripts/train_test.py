@@ -64,8 +64,13 @@ def train_mnist(wrapper: NoPropModelWrapper, dataset_path: Path):
         lr=train_config.lr,
         weight_decay=train_config.weight_decay,
     )
-    scheduler = get_scheduler(
-        optimizer, total_steps=(wrapper.train_config.epochs * len(train_loader))
+
+    scheduler = (
+        get_scheduler(
+            optimizer, total_steps=(wrapper.train_config.epochs * len(train_loader))
+        )
+        if train_config.use_scheduler
+        else None
     )
 
     train(

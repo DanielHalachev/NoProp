@@ -18,9 +18,10 @@ def test(
     :return: The accuracy of the model on the test dataset.
     """
 
+    wrapper.model.eval()
+
     correct = 0
     total = 0
-    wrapper.model.eval()
 
     with torch.no_grad():
         for src, trg in tqdm(dataloader):

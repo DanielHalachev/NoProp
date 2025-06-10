@@ -3,6 +3,9 @@ from abc import ABC, abstractmethod
 
 import torch
 import torch.nn as nn
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
+from torch.utils.data import DataLoader
 
 from src.components.backbone import Backbone
 from src.components.concatenator import Concatenator
@@ -16,27 +19,43 @@ class BaseNoPropModel(ABC, torch.nn.Module):
     Base class for all NoProp models.
     """
 
-    def __init__(self, config: NoPropBaseModelConfig, device: torch.device) -> None:
+    def __init__(
+        self,
+        config: NoPropBaseModelConfig,
+        label_encoder: LabelEncoder,
+        noise_scheduler: NoiseScheduler,
+        concatenator: Concatenator,
+        device: torch.device,
+    ) -> None:
         """
         Initializes the NoPropModel with the specified device.
 
         :param config: Configuration object containing model parameters.
+        :param label_encoder: Label encoder for encoding labels into embeddings.
+        :param noise_scheduler: Noise scheduler for managing noise levels during training.
+        :param concatenator: Concatenator for combining features from different sources.
         :param device: The device (CPU or GPU) on which the model will run.
         """
 
         super().__init__()
-        self.config = config
         self.backbone = Backbone(
             config.backbone_resnet_type, config.embedding_dimension
         )
-        self.label_encoder = LabelEncoder(config.embedding_dimension)
-        self.noise_scheduler = NoiseScheduler(config.noise_scheduler_hidden_dimension)
-        self.concatenator = Concatenator(config.embedding_dimension, config.num_classes)
+        self.label_encoder = label_encoder
+        self.noise_scheduler = noise_scheduler
+        self.concatenator = concatenator
         self.W_Embed = nn.Parameter(
             torch.zeros(config.num_classes, config.embedding_dimension)
         )
         self.device = device
         self.to(device)
+
+    @abstractmethod
+    def alpha_bar(self, *args, **kwargs) -> torch.Tensor:
+        """
+        Abstract method to get the alpha_bar values from the noise scheduler.
+        :return: Tensor representing the alpha_bar values."""
+        pass
 
     def save_model(self, path: os.PathLike):
         """
@@ -57,6 +76,26 @@ class BaseNoPropModel(ABC, torch.nn.Module):
     @abstractmethod
     def forward_denoise(self, *args, **kwargs) -> torch.Tensor:
         pass
+
+    @abstractmethod
+    def train_epoch(
+        self,
+        optimizer: Optimizer,
+        scheduler: LRScheduler | None,
+        dataloader: DataLoader,
+        eta: float,
+        epoch: int,
+        total_epochs: int,
+    ) -> float:
+        """
+        Trains the model for one epoch.
+
+        :param optimizer: Optimizer for the model parameters.
+        :param scheduler: Learning rate scheduler.
+        :param dataloader: DataLoader for the training dataset.
+        :param eta: Learning rate.
+        :return: Average training loss for the epoch.
+        """
 
     @abstractmethod
     def train_step(
