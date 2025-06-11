@@ -1,0 +1,14 @@
+{
+    "batch_size": 128,
+    "epochs": 100,
+    "optimiser": "AdamW",
+    "learning_rate": 0.001,
+    "weight_decay": 0.001,
+    "number_of_timesteps": 10,
+    "eta": 0.1,
+    "model_type": "NO_PROP_DT",
+    "backbone_resnet_type": "RESNET18",
+    "num_classes": 10,
+    "embedding_dimension": 784,
+    "label_encoder_hidden_dimension": 64
+}
