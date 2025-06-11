@@ -21,7 +21,7 @@ class NoPropBaseModelConfig(ABC):
     :ivar model_type: The type of NoProp model (Discrete Time or Continuous Time).
     :ivar backbone_resnet_type: The type of backbone ResNet.
     :ivar num_classes: The number of output classes for classification tasks.
-    :ivar embedding_dimension: The dimension of the embedding layer.
+    :ivar embedding_dimension: The dimension of the embedding layer, matching the image dimension.
     :ivar label_encoder_hidden_dimension: The hidden dimension for the label encoder.
     """
 
@@ -49,10 +49,15 @@ class NoPropBaseModelConfig(ABC):
         with open(file_path, "r") as file:
             config_data = json.load(file)
 
-        # update only the attributes present in the config file
+        # Update only the attributes present in the config file. Convert strings to values where necessary
         for key, value in config_data.items():
             if hasattr(self, key):
-                setattr(self, key, value)
+                if key == "model_type" and isinstance(value, str):
+                    setattr(self, key, getattr(NoPropModelType, value))
+                elif key == "backbone_resnet_type" and isinstance(value, str):
+                    setattr(self, key, getattr(ResNetType, value))
+                else:
+                    setattr(self, key, value)
 
         return self
 
@@ -65,7 +70,7 @@ class NoPropDTConfig(NoPropBaseModelConfig):
     :ivar model_type: The type of NoProp model (Discrete Time or Continuous Time).
     :ivar backbone_resnet_type: The type of backbone ResNet.
     :ivar num_classes: The number of output classes for classification tasks.
-    :ivar embedding_dimension: The dimension of the embedding layer.
+    :ivar embedding_dimension: The dimension of the embedding layer, matching the image dimension.
     :ivar label_encoder_hidden_dimension: The hidden dimension for the label encoder.
     :ivar number_of_timesteps: The number of timesteps for the discrete time model.
     """
@@ -106,7 +111,7 @@ class NoPropCTConfig(NoPropBaseModelConfig):
     :ivar model_type: The type of NoProp model (Discrete Time or Continuous Time).
     :ivar backbone_resnet_type: The type of backbone ResNet.
     :ivar num_classes: The number of output classes for classification tasks.
-    :ivar embedding_dimension: The dimension of the embedding layer.
+    :ivar embedding_dimension: The dimension of the embedding layer, matching the image dimension.
     :ivar label_encoder_hidden_dimension: The hidden dimension for the label encoder.
     :ivar time_embedding_dimension: The dimension of the time embedding layer.
     :ivar noise_scheduler_hidden_dimension: The hidden dimension for the noise scheduler.

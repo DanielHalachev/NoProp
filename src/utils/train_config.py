@@ -23,7 +23,7 @@ class NoPropTrainConfig:
         use_scheduler: bool = False,
         samples_per_class: int = 10,
         eta: float = 1.0,
-        inference_number_of_steps=40,
+        inference_number_of_steps: int = 40,
         patience: int = 5,
         workers: int = 8,
         logs_per_epoch: int = 5,
@@ -61,3 +61,20 @@ class NoPropTrainConfig:
         self.patience = patience
         self.workers = workers
         self.logs_per_epoch = logs_per_epoch
+
+    def from_file(self, file_path: os.PathLike) -> "NoPropTrainConfig":
+        """
+        Updates the current NoPropTrainConfig instance with values from a JSON file.
+        Only updates the attributes present in the file, keeping the rest unchanged.
+
+        :param file_path: Path to the JSON configuration file.
+        """
+        with open(file_path, "r") as file:
+            config_data = json.load(file)
+
+        # Update only the attributes present in the config file
+        for key, value in config_data.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+
+        return self
