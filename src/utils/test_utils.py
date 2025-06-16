@@ -1,8 +1,8 @@
 import torch
-import wandb
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+import wandb
 from models.model_wrapper import NoPropModelWrapper  # type:ignore
 
 
@@ -29,9 +29,7 @@ def test(
             src = src.to(wrapper.device)
             trg = trg.to(wrapper.device)
 
-            correct, total, predictions = wrapper.model.test_step(
-                src, trg, wrapper.train_config.eta
-            )
+            correct, total, predictions = wrapper.model.test_step(src, trg)
 
     test_accuracy = 100 if total == 0 else (correct * 100) / total
 
