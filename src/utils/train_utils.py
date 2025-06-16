@@ -67,7 +67,6 @@ def train(
             )
             validation_acc, records = wrapper.model.validate_epoch(
                 validation_loader,
-                wrapper.train_config.eta,
                 epoch,
                 total_epochs,
                 wrapper.train_config.logs_per_epoch,

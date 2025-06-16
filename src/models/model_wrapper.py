@@ -72,7 +72,7 @@ class NoPropModelWrapper:
         # collect all features and labels from the dataloader
         features_list, labels_list = [], []
         with torch.no_grad():
-            for images, labels in tqdm(train_dataloader):
+            for images, labels in tqdm(train_dataloader, desc="Prototypes"):
                 features = self.pretrained_backbone(images.to(self.device))
                 features_list.append(features.cpu())
                 labels_list.append(labels)

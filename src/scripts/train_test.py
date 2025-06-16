@@ -16,7 +16,7 @@ from src.utils.train_config import NoPropTrainConfig
 from src.utils.train_utils import get_scheduler, train
 
 
-def train_mnist(wrapper: NoPropModelWrapper):
+def train_on_db(wrapper: NoPropModelWrapper):
     """
     Trains the NoProp model on the MNIST dataset.
 
@@ -117,6 +117,12 @@ def main():
         required=True,
         help="Path to the dataset",
     )
+    parser.add_argument(
+        "--train-config-path",
+        type=Path,
+        required=False,
+        help="Path to the training configuration file",
+    )
     args = parser.parse_args()
 
     device = DeviceManager.get_device()
@@ -138,28 +144,19 @@ def main():
     train_config = NoPropTrainConfig(
         args.save_model_path, args.dataset_type, args.dataset_path
     )
+    # optionally override the default training configuration with a file
+    if args.train_config_path:
+        train_config = train_config.from_file(args.train_config_path)
 
     project_name = (
         "NoProp" + f"_{args.model_type.value}" + f"_{args.dataset_type.value}"
     )
     with wandb.init(project=project_name):
-        wandb.config.update(
-            {
-                "learning_rate": train_config.lr,
-                "epochs": train_config.epochs,
-                "batch_size": train_config.batch_size,
-                "weight_decay": train_config.weight_decay,
-                "workers": train_config.workers,
-                "save_model_path": args.save_model_path,
-                "dataset_path": args.dataset_path,
-                "dataset": args.dataset_type.value,
-            }
-        )
-
+        wandb.config.update({**vars(train_config), "device": str(device)})
         wandb.watch(model)
 
         wrapper = NoPropModelWrapper(model, model_config, train_config)
-        train_mnist(wrapper)
+        train_on_db(wrapper)
 
         wandb.finish()
 
