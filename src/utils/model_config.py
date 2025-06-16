@@ -81,7 +81,7 @@ class NoPropDTConfig(NoPropBaseModelConfig):
         num_classes: int = 10,
         embedding_dimension: int = 128,
         label_encoder_hidden_dimension: int = 64,
-        number_of_timesteps: int = 1000,
+        number_of_timesteps: int = 1,
     ) -> None:
         super().__init__(
             model_type=NoPropModelType.NO_PROP_DT,
@@ -125,6 +125,7 @@ class NoPropCTConfig(NoPropBaseModelConfig):
         label_encoder_hidden_dimension: int = 64,
         noise_scheduler_hidden_dimension: int = 64,
         time_embedding_dimension: int = 128,
+        inference_number_of_timesteps: int = 1000,
     ) -> None:
         super().__init__(
             model_type=NoPropModelType.NO_PROP_CT,
@@ -135,6 +136,7 @@ class NoPropCTConfig(NoPropBaseModelConfig):
         )
         self.noise_scheduler_hidden_dimension = noise_scheduler_hidden_dimension
         self.time_embedding_dimension = time_embedding_dimension
+        self.inference_number_of_timesteps = inference_number_of_timesteps
 
     def from_file(self, file_path: os.PathLike) -> "NoPropCTConfig":
         """

@@ -9,7 +9,7 @@ class CTLabelEncoder(LabelEncoder):
     Encodes a label-embedding vector z_t of shape [batch_size, embedding_dimension] via a small FC net with skip connection.
     """
 
-    def __init__(self, embedding_dimension: int, hidden_dim: int):
+    def __init__(self, embedding_dimension: int, label_encoder_hidden_dimension: int):
         """
         Initializes the LabelEncoder with a specified embedding output dimension and hidden dimension.
 
@@ -18,10 +18,11 @@ class CTLabelEncoder(LabelEncoder):
         """
 
         super().__init__()
-        self.hidden_dim = hidden_dim
-        self.fc1 = nn.Linear(embedding_dimension, self.hidden_dim)
+        self.hidden_dimension = label_encoder_hidden_dimension
+        self.output_dimension = embedding_dimension
+        self.fc1 = nn.Linear(embedding_dimension, self.hidden_dimension)
         self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(self.hidden_dim, embedding_dimension)
+        self.fc2 = nn.Linear(self.hidden_dimension, embedding_dimension)
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
         """
@@ -33,6 +34,7 @@ class CTLabelEncoder(LabelEncoder):
 
         x = self.fc1(z)
         x = self.relu(x)
-        x = self.fc2(x)
-        out = x + z
-        return out
+        if self.hidden_dimension != self.output_dimension:
+            # If the hidden dimension is not equal to the embedding dimension, we need to project it back
+            x = self.fc2(x)
+        return x

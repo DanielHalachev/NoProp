@@ -3,9 +3,12 @@ import random
 
 import torch
 from torch.utils.data import DataLoader
+from tqdm import tqdm  # type: ignore
 
+from components.backbone import Backbone
 from src.models.base_model import BaseNoPropModel
 from src.utils.train_config import NoPropTrainConfig
+from utils.model_config import NoPropBaseModelConfig  # type: ignore
 
 
 class NoPropModelWrapper:
@@ -16,6 +19,7 @@ class NoPropModelWrapper:
     def __init__(
         self,
         model: BaseNoPropModel,
+        model_config: NoPropBaseModelConfig,
         train_config: NoPropTrainConfig,
     ) -> None:
         """
@@ -26,6 +30,7 @@ class NoPropModelWrapper:
         :param device: The device (CPU or GPU) on which the model will run.
         """
         self.model = model
+        self.model_config = model_config
         self.train_config = train_config
         self.device = model.device
 
@@ -52,14 +57,23 @@ class NoPropModelWrapper:
         """
         self.model.eval()
 
-        num_classes = self.model.config.num_classes
+        # this is a pretrained backbone that will be used to extract features from images
+        # it is not the same as the backbone used in the models, which is not pretrained
+        self.pretrained_backbone = Backbone(
+            self.model_config.backbone_resnet_type,
+            self.model_config.embedding_dimension,
+            use_resnet=True,
+            pretrained=True,
+        ).to(self.device)
+
+        num_classes = self.model_config.num_classes
         max_samples_per_class = self.train_config.samples_per_class
 
         # collect all features and labels from the dataloader
         features_list, labels_list = [], []
         with torch.no_grad():
-            for images, labels in train_dataloader:
-                features = self.model.backbone(images.to(self.device))
+            for images, labels in tqdm(train_dataloader):
+                features = self.pretrained_backbone(images.to(self.device))
                 features_list.append(features.cpu())
                 labels_list.append(labels)
         all_features = torch.cat(features_list, dim=0)  # [total_samples, embedding_dim]
@@ -100,4 +114,5 @@ class NoPropModelWrapper:
 
         with torch.no_grad():
             self.model.W_Embed.copy_(class_prototypes)
+            self.model.W_Embed.data = self.model.W_Embed.data.to(self.device)
         return class_prototypes, prototype_sample_indexes

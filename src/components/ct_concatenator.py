@@ -13,16 +13,21 @@ class CTConcatenator(Concatenator):
     ft is the time embedding.
     """
 
-    def __init__(self, embedding_dimension: int, num_classes: int):
+    def __init__(
+        self,
+        embedding_dimension: int,
+        num_classes: int,
+    ):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(embedding_dimension * 3, embedding_dimension),
-            nn.BatchNorm1d(embedding_dimension),
+            nn.Linear(
+                embedding_dimension * 3,
+                embedding_dimension,
+            ),
             nn.ReLU(),
-            nn.Linear(embedding_dimension, embedding_dimension),
-            nn.BatchNorm1d(embedding_dimension),
+            nn.Linear(embedding_dimension, embedding_dimension // 2),
             nn.ReLU(),
-            nn.Linear(embedding_dimension, num_classes),
+            nn.Linear(embedding_dimension // 2, num_classes),
         )
 
     @property
@@ -35,7 +40,7 @@ class CTConcatenator(Concatenator):
         return self.net[-1].out_features
 
     def forward(
-        self, fx: torch.Tensor, fz: torch.Tensor, ft: torch.Tensor | None = None
+        self, fx: torch.Tensor, fz: torch.Tensor, ft: torch.Tensor
     ) -> torch.Tensor:
         """
         Forward pass of the FuseHead module.
@@ -44,8 +49,5 @@ class CTConcatenator(Concatenator):
         :param ft: Tensor representing the time embedding features.
         :return: Output tensor of size [batch_size, num_classes]
         """
-        if ft is None:
-            x = torch.cat([fx, fz], dim=1)
-        else:
-            x = torch.cat([fx, fz, ft], dim=1)
+        x = torch.cat([fx, fz, ft], dim=1)
         return self.net(x)

@@ -4,6 +4,13 @@ import torchvision  # type:ignore
 from torch.utils.data import Dataset
 
 
+def repeat_channels(x):
+    """
+    Converts a 1-channel grayscale image to 3 channels.
+    """
+    return x.repeat(3, 1, 1)
+
+
 class MNISTDatasetManager:
     @classmethod
     def get_datasets(cls, data_root: Path) -> tuple[Dataset, Dataset, Dataset, int]:
@@ -23,7 +30,7 @@ class MNISTDatasetManager:
             [
                 torchvision.transforms.ToTensor(),
                 # MNIST is 1-channel grayscale, convert to 3 channels
-                torchvision.transforms.Lambda(lambda x: x.repeat(3, 1, 1)),
+                torchvision.transforms.Lambda(repeat_channels),
                 torchvision.transforms.Normalize(
                     (0.1307,), (0.3081,)
                 ),  # Normalize MNIST data
@@ -33,7 +40,7 @@ class MNISTDatasetManager:
             [
                 torchvision.transforms.ToTensor(),
                 # MNIST is 1-channel grayscale, convert to 3 channels
-                torchvision.transforms.Lambda(lambda x: x.repeat(3, 1, 1)),
+                torchvision.transforms.Lambda(repeat_channels),
                 torchvision.transforms.Normalize(
                     (0.1307,), (0.3081,)
                 ),  # Normalize MNIST data

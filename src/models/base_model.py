@@ -7,10 +7,6 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
 
-from src.components.backbone import Backbone
-from src.components.concatenator import Concatenator
-from src.components.noise_scheduler import NoiseScheduler
-from src.embeddings.label_encoder import LabelEncoder
 from src.utils.model_config import NoPropBaseModelConfig
 
 
@@ -22,9 +18,6 @@ class BaseNoPropModel(ABC, torch.nn.Module):
     def __init__(
         self,
         config: NoPropBaseModelConfig,
-        label_encoder: LabelEncoder,
-        noise_scheduler: NoiseScheduler,
-        concatenator: Concatenator,
         device: torch.device,
     ) -> None:
         """
@@ -38,17 +31,12 @@ class BaseNoPropModel(ABC, torch.nn.Module):
         """
 
         super().__init__()
-        self.backbone = Backbone(
-            config.backbone_resnet_type, config.embedding_dimension
-        )
-        self.label_encoder = label_encoder
-        self.noise_scheduler = noise_scheduler
-        self.concatenator = concatenator
+
         self.W_Embed = nn.Parameter(
             torch.zeros(config.num_classes, config.embedding_dimension)
         )
+        self.classifier = nn.Linear(config.embedding_dimension, config.num_classes)
         self.device = device
-        self.to(device)
 
     @abstractmethod
     def alpha_bar(self, *args, **kwargs) -> torch.Tensor:
@@ -74,7 +62,17 @@ class BaseNoPropModel(ABC, torch.nn.Module):
         self.load_state_dict(torch.load(path))
 
     @abstractmethod
-    def forward_denoise(self, *args, **kwargs) -> torch.Tensor:
+    def forward_denoise(self, *args, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+        pass
+
+    @abstractmethod
+    def infer(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Abstract method for inference. Must be implemented by subclasses.
+
+        :param x: Input tensor.
+        :return: Inferred output tensor.
+        """
         pass
 
     @abstractmethod
@@ -96,30 +94,17 @@ class BaseNoPropModel(ABC, torch.nn.Module):
         :param eta: Learning rate.
         :return: Average training loss for the epoch.
         """
-
-    @abstractmethod
-    def train_step(
-        self,
-        src: torch.Tensor,
-        trg: torch.Tensor,
-        optimizer: torch.optim.Optimizer,
-        eta: float,
-    ) -> float:
-        """
-        Abstract method for training step. Must be implemented by subclasses.
-
-        :param src: Source tensor (input data).
-        :param trg: Target tensor (labels).
-        :param optimizer: Optimizer for updating model parameters.
-        :param eta: Hyperparameter.
-        :return: Loss value for the training step over the whole batch.
-        """
         pass
 
     @abstractmethod
-    def validate_step(
-        self, src: torch.Tensor, trg: torch.Tensor, eta: float, *args, **kwargs
-    ) -> tuple[float, int, int, torch.Tensor]:
+    def validate_epoch(
+        self,
+        dataloader: DataLoader,
+        eta: float,
+        epoch: int,
+        total_epochs: int,
+        logs_per_epoch: int,
+    ) -> tuple[float, list[tuple[int, object, int, int]]]:
         """
         Abstract method for validation step. Must be implemented by subclasses.
 
@@ -134,7 +119,29 @@ class BaseNoPropModel(ABC, torch.nn.Module):
         """
         pass
 
-    @abstractmethod
+    def test(self, dataloader: DataLoader) -> tuple[int, int, list[torch.Tensor]]:
+        """
+        Tests the model on the provided DataLoader.
+
+        :param dataloader: DataLoader for the test dataset.
+        :return: Tuple of (number of correct predictions, total number of predictions, predictions).
+        """
+        self.eval()
+        with torch.no_grad():
+            correct = 0
+            total = 0
+            predictions = []
+
+            for src, trg in dataloader:
+                src = src.to(self.device)
+                trg = trg.to(self.device)
+                c, t, preds = self.test_step(src, trg)
+                correct += c
+                total += t
+                predictions.append(preds)
+
+            return (correct, total, predictions)
+
     def test_step(
         self, src: torch.Tensor, trg: torch.Tensor, *args, **kwargs
     ) -> tuple[int, int, torch.Tensor]:
@@ -146,4 +153,8 @@ class BaseNoPropModel(ABC, torch.nn.Module):
         :param inference_number_of_steps: Number of steps for inference (if applicable).
         :return: Tuple of (correct predictions, total predictions, predictions).
         """
-        pass
+
+        correct = 0
+        predictions = self.infer(src).argmax(dim=1)
+        correct += int((predictions == trg).sum().item())
+        return correct, trg.size(0), predictions

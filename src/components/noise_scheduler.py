@@ -17,7 +17,7 @@ class NoiseScheduler(ABC, nn.Module):
     @abstractmethod
     def alpha_bar(self, *args, **kwargs) -> torch.Tensor:
         """
-        Computes the alpha_bar value for a given time tensor t.
+        Computes the alpha_bar value.
 
         :param t: A tensor representing time, typically in the range [0, 1].
         :return: A tensor representing the alpha_bar values,

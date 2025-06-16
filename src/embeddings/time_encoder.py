@@ -9,7 +9,7 @@ class TimeEncoder(nn.Module):
     Encodes a timestamp t of shape [batch_size ,1] into an embedding of shape [batch_size, output_embedding_dim].
     """
 
-    def __init__(self, time_emb_dim: int, output_embedding_dim: int):
+    def __init__(self, time_encoder_hidden_dimension: int, embedding_dim: int):
         """
         Initializes the TimeEncoder with the specified time embedding dimension and output embedding dimension.
 
@@ -18,10 +18,11 @@ class TimeEncoder(nn.Module):
         """
 
         super().__init__()
+        self.hidden_dimension = time_encoder_hidden_dimension
         self.fc = nn.Sequential(
-            nn.Linear(time_emb_dim, output_embedding_dim), nn.ReLU()
+            nn.Linear(time_encoder_hidden_dimension, embedding_dim), nn.ReLU()
         )
-        self.time_emb_dim = time_emb_dim
+        self.relu = nn.ReLU()
 
     def forward(self, timestamp: torch.Tensor) -> torch.Tensor:
         """
@@ -32,10 +33,10 @@ class TimeEncoder(nn.Module):
         [batch_size,1] -> [batch_size, time_emb_dim] -> [batch_size, output_embedding_dim]
 
         :param timestamp: Input tensor of shape [batch_size, 1], representing the timestamp.
-        :return: Output tensor of shape [batch_size, output_embedding_dim], which is the encoded time embedding.
+        :return: Output tensor of shape [batch_size, embedding_dim], which is the encoded time embedding.
         """
 
         # [batch_size,1] -> [batch_size, time_emb_dim]
-        time_embedding = sinusoidal_embedding(timestamp, self.time_emb_dim)
-        # [batch_size,time_emb_dim] -> [batch_size, output_embedding_dim]
-        return self.fc(time_embedding)
+        time_embedding = sinusoidal_embedding(timestamp, self.hidden_dimension)
+        # [batch_size,time_emb_dim] -> [batch_size, embedding_dim]
+        return self.relu(self.fc(time_embedding))

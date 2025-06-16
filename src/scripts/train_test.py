@@ -1,10 +1,9 @@
 import argparse
-import os
 from pathlib import Path
 
 import torch
-import wandb
 
+import wandb
 from src.data.dataset_manager import DatasetManager, DatasetType
 from src.models.model_type import NoPropModelType
 from src.models.model_wrapper import NoPropModelWrapper
@@ -33,6 +32,8 @@ def train_mnist(wrapper: NoPropModelWrapper, dataset_path: Path):
         )
     )
 
+    wrapper.model_config.num_classes = number_of_classes
+
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=train_config.batch_size,
@@ -57,8 +58,6 @@ def train_mnist(wrapper: NoPropModelWrapper, dataset_path: Path):
 
     wrapper.initialize_with_prototypes(train_loader)
 
-    # TODO scheduler currently unused
-    # maybe use it or remove it
     optimizer = torch.optim.AdamW(
         wrapper.model.parameters(),
         lr=train_config.lr,
@@ -93,19 +92,17 @@ def main():
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Train a NoProp model.")
     parser.add_argument(
-        "--save_model_path",
-        type=os.PathLike,
+        "--save-model-path",
+        type=str,
         required=True,
         help="Path where the model will be saved.",
-        example="mnist_model.pt",
     )
     parser.add_argument(
-        "--model_type",
+        "--model-type",
         type=NoPropModelType,
         choices=list(NoPropModelType),
         required=True,
         help="The type of NoProp model to train.",
-        example="CT",
     )
     parser.add_argument(
         "--dataset-type",
@@ -113,14 +110,12 @@ def main():
         choices=list(DatasetType),
         required=True,
         help="Name of the dataset",
-        example="MNIST",
     )
     parser.add_argument(
         "--dataset-path",
         type=Path,
         required=True,
         help="Path to the dataset",
-        example="./data/mnist",
     )
     args = parser.parse_args()
 
@@ -163,7 +158,11 @@ def main():
 
         wandb.watch(model)
 
-        wrapper = NoPropModelWrapper(model, train_config)
+        wrapper = NoPropModelWrapper(model, model_config, train_config)
         train_mnist(wrapper, args.dataset_path)
 
         wandb.finish()
+
+
+if __name__ == "__main__":
+    main()

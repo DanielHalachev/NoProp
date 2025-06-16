@@ -56,4 +56,4 @@ class CTNoiseScheduler(NoiseScheduler):
         """
 
         gamma_t = self.gamma0 + (self.gamma1 - self.gamma0) * (1 - self._gamma_bar(t))
-        return torch.sigmoid(-gamma_t / 2).clamp(0.01, 0.99)
+        return torch.sigmoid(-gamma_t).clamp(0.01, 0.99)
