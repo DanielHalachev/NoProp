@@ -75,7 +75,7 @@ def train(
                 {
                     "epoch": epoch,
                     "train_loss": train_loss,
-                    "validation:acc": validation_acc,
+                    "validation_acc": validation_acc,
                 }
             )
 

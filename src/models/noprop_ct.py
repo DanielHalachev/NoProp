@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import ToPILImage
 from tqdm import tqdm
 
+import wandb
 from components.ct_block import CTDenoiseBlock
 from components.time_scheduler import TimeScheduler
 from src.components.ct_noise_scheduler import CTNoiseScheduler
@@ -241,6 +242,13 @@ class NoPropCT(BaseNoPropModel):
         ce_loss = torch_f.cross_entropy(self.classifier(prediction_embeddings_1), trg)
 
         # total loss is a combination of cross-entropy, KL divergence, and SDM loss
+        wandb.log(
+            {
+                "train/ce_loss": ce_loss,
+                "train/kl_loss": kl_loss,
+                "train/sdm_loss": sdm_loss,
+            }
+        )
         total_loss = ce_loss + kl_loss + sdm_loss
 
         return total_loss
