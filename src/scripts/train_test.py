@@ -16,7 +16,7 @@ from src.utils.train_config import NoPropTrainConfig
 from src.utils.train_utils import get_scheduler, train
 
 
-def train_mnist(wrapper: NoPropModelWrapper, dataset_path: Path):
+def train_mnist(wrapper: NoPropModelWrapper):
     """
     Trains the NoProp model on the MNIST dataset.
 
@@ -159,7 +159,7 @@ def main():
         wandb.watch(model)
 
         wrapper = NoPropModelWrapper(model, model_config, train_config)
-        train_mnist(wrapper, args.dataset_path)
+        train_mnist(wrapper)
 
         wandb.finish()
 

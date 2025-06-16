@@ -40,7 +40,7 @@ class DTLabelEncoder(LabelEncoder):
         Forward pass of the LabelEncoder.
 
         :param z: Input tensor of shape [batch_size, embedding_dimension], which represents the label-embedding vector.
-        :return: Output tensor of the same shape as input z, after passing through the fully connected layers with a skip connection.
+        :return: Output tensor of the same shape as input z.
         """
 
         input = self.seg1(z)

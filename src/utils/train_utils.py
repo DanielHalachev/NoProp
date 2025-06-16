@@ -42,7 +42,6 @@ def train(
 
     :param wrapper: Model wrapper containing the model training configuration.
     :param optimizer: Optimizer for the model parameters.
-    :param criterion: Loss function to optimize.
     :param scheduler: Learning rate scheduler.
     :param train_loader: DataLoader for the training dataset.
     :param validation_loader: DataLoader for the validation dataset.

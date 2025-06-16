@@ -33,7 +33,7 @@ class NoPropCT(BaseNoPropModel):
         self.denoise_block = CTDenoiseBlock(self.config)
         self.noise_scheduler = CTNoiseScheduler(config.noise_scheduler_hidden_dimension)
         self.time_encoder = TimeEncoder(
-            self.config.time_embedding_dimension, self.config.embedding_dimension
+            self.config.time_encoder_hidden_dimension, self.config.embedding_dimension
         )
         self.to(device)
 
@@ -52,12 +52,31 @@ class NoPropCT(BaseNoPropModel):
     def forward_denoise(
         self, x: torch.Tensor, z_t: torch.Tensor, t: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass through the denoise block, which processes the input image features,
+        the label-embedding vector, and the time embedding.
+        :param x: Input tensor representing the image features.
+        :param z_t: Input tensor representing the label-embedding vector.
+        :param t: Input tensor representing the time embedding.
+        :return: A tuple containing:
+            - logits: Output tensor of shape [batch_size, num_classes] representing the logits for each class.
+            - z_next: Output tensor of shape [batch_size, embedding_dimension] representing the next label-embedding vector.
+        """
+
         logits = self.denoise_block(x, z_t, t)
         probabilities = torch_f.softmax(logits, dim=1)
         z_next = probabilities @ self.W_Embed  # [batch_size, embedding_dimension]
         return logits, z_next
 
-    def infer(self, x: torch.Tensor):
+    def infer(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Performs inference on the input tensor x using the NoPropCT model.
+        This method iteratively denoises the embeddings using the learned model parameters
+        and the noise schedule, and returns the predicted class labels.
+        :param x: Input tensor of shape (batch_size, input_dimension).
+        :return: Predicted class labels for the input tensor.
+        """
+
         number_of_steps = self.config.inference_number_of_timesteps
         batch_size = x.size(0)
         z = torch.randn(batch_size, self.config.embedding_dimension, device=self.device)
@@ -83,6 +102,9 @@ class NoPropCT(BaseNoPropModel):
         :param scheduler: Learning rate scheduler.
         :param dataloader: DataLoader for the training dataset.
         :param eta: Learning rate.
+        :param epoch: Current epoch number.
+        :param total_epochs: Total number of epochs for training.
+        :param logs_per_epoch: Number of visualizations to log per epoch.
         :return: Average training loss for the epoch.
         """
 
@@ -111,7 +133,6 @@ class NoPropCT(BaseNoPropModel):
     def validate_epoch(
         self,
         dataloader: DataLoader,
-        eta: float,
         epoch: int,
         total_epochs: int,
         logs_per_epoch: int,
@@ -119,10 +140,10 @@ class NoPropCT(BaseNoPropModel):
         """
         Trains the model for one epoch.
 
-        :param optimizer: Optimizer for the model parameters.
-        :param scheduler: Learning rate scheduler.
         :param dataloader: DataLoader for the training dataset.
-        :param eta: Learning rate.
+        :param epoch: Current epoch number.
+        :param total_epochs: Total number of epochs for training.
+        :param logs_per_epoch: Number of visualizations to log per epoch.
         :return: Average training loss for the epoch.
         """
 
@@ -140,7 +161,7 @@ class NoPropCT(BaseNoPropModel):
                 src = src.to(self.device)
                 trg = trg.to(self.device)
 
-                correct_temp, total_temp, predictions = self.test_step(src, trg, eta)
+                correct_temp, total_temp, predictions = self.test_step(src, trg)
                 correct += correct_temp
                 total += total_temp
 
@@ -170,6 +191,19 @@ class NoPropCT(BaseNoPropModel):
         trg: torch.Tensor,
         eta: float,
     ) -> torch.Tensor:
+        """
+        Performs a single training step for the NoPropCT model.
+        This method computes the loss based on the input source tensor and target labels,
+        and performs a forward pass through the model to obtain the logits and predictions.
+
+        The training can be split by time steps, but here everything is in one place for simplicity.
+        Since training will be done on one GPU anyway.
+
+        :param src: Input tensor of shape (batch_size, input_dimension).
+        :param trg: Target tensor of shape (batch_size,) containing class labels.
+        :param eta: Hyperparameter for the training step.
+        :return: A tensor representing the total loss for the training step.
+        """
         batch_size = src.size(0)
         label_embeddings = self.W_Embed[trg]  # [batch_size, embedding_dim]
 

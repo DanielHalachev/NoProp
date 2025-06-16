@@ -43,7 +43,8 @@ class CTConcatenator(Concatenator):
         self, fx: torch.Tensor, fz: torch.Tensor, ft: torch.Tensor
     ) -> torch.Tensor:
         """
-        Forward pass of the FuseHead module.
+        Forward pass of the CTConcatenator module.
+
         :param fx: Tensor representing the image features.
         :param fz: Tensor representing the previous noise block features.
         :param ft: Tensor representing the time embedding features.

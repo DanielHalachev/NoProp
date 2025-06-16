@@ -5,7 +5,7 @@ from src.components.noise_scheduler import NoiseScheduler
 
 class DTNoiseScheduler(NoiseScheduler):
     """
-    DTNoiseScheduler is a module that emits a gaussian noise schedule.
+    DTNoiseScheduler is a module that emits a uniform noise schedule.
 
     """
 

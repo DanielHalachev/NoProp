@@ -7,10 +7,10 @@ from src.models.model_type import NoPropModelType
 
 DEFAULTS = {
     "model_type": NoPropModelType.NO_PROP_DT,
-    "backbone_resnet_type": ResNetType.RESNET18,
+    "backbone_resnet_type": ResNetType.RESNET50,
     "num_classes": 10,
-    "embedding_dimension": 128,
-    "label_encoder_hidden_dimension": 64,
+    "embedding_dimension": 256,
+    "label_encoder_hidden_dimension": 256,
 }
 
 
@@ -30,8 +30,8 @@ class NoPropBaseModelConfig(ABC):
         model_type: NoPropModelType = NoPropModelType.NO_PROP_DT,
         backbone_resnet_type: ResNetType = ResNetType.RESNET50,
         num_classes: int = 10,
-        embedding_dimension: int = 128,
-        label_encoder_hidden_dimension: int = 64,
+        embedding_dimension: int = 256,
+        label_encoder_hidden_dimension: int = 256,
     ) -> None:
         self.model_type = model_type
         self.backbone_resnet_type = backbone_resnet_type
@@ -67,7 +67,6 @@ class NoPropDTConfig(NoPropBaseModelConfig):
     Configuration class for NoProp Discrete Time Model parameters.
     Inherits from NoPropModelConfig.
 
-    :ivar model_type: The type of NoProp model (Discrete Time or Continuous Time).
     :ivar backbone_resnet_type: The type of backbone ResNet.
     :ivar num_classes: The number of output classes for classification tasks.
     :ivar embedding_dimension: The dimension of the embedding layer, matching the image dimension.
@@ -79,9 +78,9 @@ class NoPropDTConfig(NoPropBaseModelConfig):
         self,
         backbone_resnet_type: ResNetType = ResNetType.RESNET50,
         num_classes: int = 10,
-        embedding_dimension: int = 128,
-        label_encoder_hidden_dimension: int = 64,
-        number_of_timesteps: int = 1,
+        embedding_dimension: int = 256,
+        label_encoder_hidden_dimension: int = 256,
+        number_of_timesteps: int = 10,
     ) -> None:
         super().__init__(
             model_type=NoPropModelType.NO_PROP_DT,
@@ -108,12 +107,11 @@ class NoPropCTConfig(NoPropBaseModelConfig):
     Configuration class for NoProp Continuous Time Model parameters.
     Inherits from NoPropModelConfig.
 
-    :ivar model_type: The type of NoProp model (Discrete Time or Continuous Time).
     :ivar backbone_resnet_type: The type of backbone ResNet.
     :ivar num_classes: The number of output classes for classification tasks.
     :ivar embedding_dimension: The dimension of the embedding layer, matching the image dimension.
     :ivar label_encoder_hidden_dimension: The hidden dimension for the label encoder.
-    :ivar time_embedding_dimension: The dimension of the time embedding layer.
+    :ivar time_encoder_hidden_dimension: The dimension of the time encoder's inner layer.
     :ivar noise_scheduler_hidden_dimension: The hidden dimension for the noise scheduler.
     """
 
@@ -121,11 +119,11 @@ class NoPropCTConfig(NoPropBaseModelConfig):
         self,
         backbone_resnet_type: ResNetType = ResNetType.RESNET50,
         num_classes: int = 10,
-        embedding_dimension: int = 128,
-        label_encoder_hidden_dimension: int = 64,
+        embedding_dimension: int = 256,
+        label_encoder_hidden_dimension: int = 256,
         noise_scheduler_hidden_dimension: int = 64,
-        time_embedding_dimension: int = 128,
-        inference_number_of_timesteps: int = 1000,
+        time_encoder_hidden_dimension: int = 64,
+        inference_number_of_timesteps: int = 100,
     ) -> None:
         super().__init__(
             model_type=NoPropModelType.NO_PROP_CT,
@@ -135,7 +133,7 @@ class NoPropCTConfig(NoPropBaseModelConfig):
             label_encoder_hidden_dimension=label_encoder_hidden_dimension,
         )
         self.noise_scheduler_hidden_dimension = noise_scheduler_hidden_dimension
-        self.time_embedding_dimension = time_embedding_dimension
+        self.time_encoder_hidden_dimension = time_encoder_hidden_dimension
         self.inference_number_of_timesteps = inference_number_of_timesteps
 
     def from_file(self, file_path: os.PathLike) -> "NoPropCTConfig":

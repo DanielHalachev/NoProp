@@ -23,6 +23,7 @@ class NoPropDT(BaseNoPropModel):
     def __init__(self, config: NoPropDTConfig, device: torch.device) -> None:
         """
         Initializes the NoPropDT model with the specified configuration and device.
+
         :param config: Configuration object containing model parameters.
         :param device: The device (CPU or GPU) on which the model will run.
         """
@@ -46,9 +47,18 @@ class NoPropDT(BaseNoPropModel):
         self.to(device)
 
     def alpha_bar(self) -> torch.Tensor:
+        """
+        Returns the alpha_bar values from the noise scheduler.
+        :return: Tensor representing the alpha_bar values.
+        """
         return torch.as_tensor(self.alpha_bar_buf)
 
     def snr_diff(self) -> torch.Tensor:
+        """
+        Returns the signal to noise ratio (SNR) difference precomputed tensor.
+
+        :return: Tensor representing the SNR difference values.
+        """
         return torch.as_tensor(self.snr_diff_buf)
 
     def forward_denoise(
@@ -58,7 +68,8 @@ class NoPropDT(BaseNoPropModel):
         Forward denoising step for the NoProp discrete time model.
 
         :param x: Input tensor.
-        :param z_t: Noise tensor at time t.
+        :param z_t: Noise tensor.
+        :param t: Current timestep in the denoising process.
         :return: Denoised output tensor.
         """
         logits = (self.denoise_blocks[t])(x, z_t)
@@ -66,10 +77,13 @@ class NoPropDT(BaseNoPropModel):
         z_next = probabilities @ self.W_Embed
         return logits, z_next
 
-    def classify(self, z: torch.Tensor) -> torch.Tensor:
-        return self.classifier(z)
-
     def infer(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Inference step for the NoProp discrete time model.
+
+        :param x: Input tensor.
+        :return: Prediction output tensor.
+        """
         batch_size = x.size(0)
         z = torch.randn(batch_size, self.config.embedding_dimension, device=self.device)
         for t in range(self.config.number_of_timesteps):
@@ -93,6 +107,8 @@ class NoPropDT(BaseNoPropModel):
         :param scheduler: Learning rate scheduler.
         :param dataloader: DataLoader for the training dataset.
         :param eta: Learning rate.
+        :param epoch: Current epoch number.
+        :param total_epochs: Total number of epochs for training.
         :return: Average training loss for the epoch.
         """
 
@@ -128,13 +144,19 @@ class NoPropDT(BaseNoPropModel):
     def validate_epoch(
         self,
         dataloader: DataLoader,
-        eta: float,
         epoch: int,
         total_epochs: int,
         logs_per_epoch: int,
     ) -> tuple[float, list[tuple[int, object, int, int]]]:
+        """
+        Validates the model for one epoch.
+        :param dataloader: DataLoader for the validation dataset.
+        :param epoch: Current epoch number.
+        :param total_epochs: Total number of epochs for validation.
+        :param logs_per_epoch: Number of samples to log per epoch.
+        :return: Tuple containing the validation accuracy and a list of logged samples.
+        """
 
-        validation_loss = 0.0
         correct = 0
         total = 0
         logged_samples = 0
@@ -156,9 +178,7 @@ class NoPropDT(BaseNoPropModel):
                     src = src.to(self.device)
                     trg = trg.to(self.device)
 
-                    correct_temp, total_temp, predictions = self.test_step(
-                        src, trg, eta, timestep
-                    )
+                    correct_temp, total_temp, predictions = self.test_step(src, trg)
                     correct += correct_temp
                     total += total_temp
 
@@ -197,7 +217,7 @@ class NoPropDT(BaseNoPropModel):
         :param src: Source tensor (input data).
         :param trg: Target tensor (ground truth labels).
         :param optimizer: Optimizer for updating model parameters.
-        :param eta: Learning rate.
+        :param eta: NoProp hyperparameter.
         :return: Loss value for the training step.
         """
         # u_y

@@ -7,7 +7,7 @@ from src.components.resnet_type import ResNetType, ResNetWeights
 
 class Backbone(nn.Module):
     """
-    CNN Backbone serving as a feature extractor with projection.
+    CNN Backbone serving as a feature extractor and basis for the denoise block.
     """
 
     def __init__(
@@ -20,9 +20,10 @@ class Backbone(nn.Module):
         """
         Initialize the CNN backbone.
 
-        :param output_feature_dimension: Output feature dimension for the transformer.
-        :param pretrained: Whether to use pre-trained weights.
-        :param backbone_type: Type of ResNet backbone.
+        :param backbone_type: Type of the backbone to use, e.g., ResNet18, ResNet34, etc
+        :param output_feature_dimension: Output feature dimension.
+        :param use_resnet: Whether to use a ResNet backbone or a custom CNN, as in the paper.
+        :param pretrained: Whether to use pre-trained weights, if using a ResNet.
         """
         super(Backbone, self).__init__()
         self.use_resnet = use_resnet

@@ -6,12 +6,11 @@ import torch.nn as nn
 
 class NoiseScheduler(ABC, nn.Module):
     """
-    NoiseScheduler is a module that emits a learnable continuous noise schedule.
-    It uses a parameterized gamma function to adjust the alpha_bar values,
-    which are used in diffusion models to control the noise schedule during training and inference.
-
-    The gamma function is parameterized by two learnable parameters, gamma0 and gamma1,
-    and a neural network that maps the time tensor t to a normalized gamma value.
+    Abstract base class for noise schedulers in diffusion models.
+    This class defines the interface for noise schedulers, which are responsible for
+    computing the alpha_bar values used in the diffusion process.
+    It is expected that subclasses will implement the alpha_bar method to compute
+    the alpha_bar values based on a given time tensor.
     """
 
     @abstractmethod
@@ -19,7 +18,6 @@ class NoiseScheduler(ABC, nn.Module):
         """
         Computes the alpha_bar value.
 
-        :param t: A tensor representing time, typically in the range [0, 1].
         :return: A tensor representing the alpha_bar values,
                 which are used in diffusion models to control the noise schedule.
         """

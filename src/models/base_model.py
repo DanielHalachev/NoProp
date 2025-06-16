@@ -24,9 +24,6 @@ class BaseNoPropModel(ABC, torch.nn.Module):
         Initializes the NoPropModel with the specified device.
 
         :param config: Configuration object containing model parameters.
-        :param label_encoder: Label encoder for encoding labels into embeddings.
-        :param noise_scheduler: Noise scheduler for managing noise levels during training.
-        :param concatenator: Concatenator for combining features from different sources.
         :param device: The device (CPU or GPU) on which the model will run.
         """
 
@@ -63,6 +60,10 @@ class BaseNoPropModel(ABC, torch.nn.Module):
 
     @abstractmethod
     def forward_denoise(self, *args, **kwargs) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Abstract method for the forward denoise step. Must be implemented by subclasses.
+        :return: Tuple of (logits, prediction embeddings).
+        """
         pass
 
     @abstractmethod
@@ -71,7 +72,7 @@ class BaseNoPropModel(ABC, torch.nn.Module):
         Abstract method for inference. Must be implemented by subclasses.
 
         :param x: Input tensor.
-        :return: Inferred output tensor.
+        :return: Prediction output tensor.
         """
         pass
 
@@ -92,6 +93,9 @@ class BaseNoPropModel(ABC, torch.nn.Module):
         :param scheduler: Learning rate scheduler.
         :param dataloader: DataLoader for the training dataset.
         :param eta: Learning rate.
+        :param epoch: Current epoch number.
+        :param total_epochs: Total number of epochs for training.
+        :param logs_per_epoch: Number of visualizations to log per epoch.
         :return: Average training loss for the epoch.
         """
         pass
@@ -100,7 +104,6 @@ class BaseNoPropModel(ABC, torch.nn.Module):
     def validate_epoch(
         self,
         dataloader: DataLoader,
-        eta: float,
         epoch: int,
         total_epochs: int,
         logs_per_epoch: int,
@@ -111,11 +114,12 @@ class BaseNoPropModel(ABC, torch.nn.Module):
         The NoProp paper uses the train loss for optimizing the training.
         Validation loss calculation may still be helpful to measure overfitting though.
 
-        :param src: Source tensor (input data).
-        :param trg: Target tensor (labels).
+        :param dataloader: DataLoader for the validation dataset.
+        :param epoch: Current epoch number.
         :param eta: Hyperparameter (if applicable).
-        :param inference_number_of_steps: Number of steps for inference (if applicable).
-        :return: Tuple of (validation loss, number of correct predictions, total number of predictions, predictions).
+        :param total_epochs: Total number of epochs for training.
+        :param logs_per_epoch: Number of visualizations to log per epoch.
+        :return: Tuple of (validation accuracy, visualizations logs for W&B).
         """
         pass
 
@@ -143,14 +147,13 @@ class BaseNoPropModel(ABC, torch.nn.Module):
             return (correct, total, predictions)
 
     def test_step(
-        self, src: torch.Tensor, trg: torch.Tensor, *args, **kwargs
+        self, src: torch.Tensor, trg: torch.Tensor
     ) -> tuple[int, int, torch.Tensor]:
         """
         Abstract method for test step. Must be implemented by subclasses.
 
         :param src: Source tensor (input data).
         :param trg: Target tensor (labels).
-        :param inference_number_of_steps: Number of steps for inference (if applicable).
         :return: Tuple of (correct predictions, total predictions, predictions).
         """
 
