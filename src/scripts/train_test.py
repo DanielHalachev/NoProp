@@ -118,10 +118,10 @@ def main():
         help="Path to the dataset",
     )
     parser.add_argument(
-        "--train-config-path",
+        "--config-path",
         type=Path,
         required=False,
-        help="Path to the training configuration file",
+        help="Path to the configuration file",
     )
     args = parser.parse_args()
 
@@ -144,9 +144,11 @@ def main():
     train_config = NoPropTrainConfig(
         args.save_model_path, args.dataset_type, args.dataset_path
     )
-    # optionally override the default training configuration with a file
-    if args.train_config_path:
-        train_config = train_config.from_file(args.train_config_path)
+    # optionally override the default training and model configuration with a file
+    if args.config_path:
+        train_config = train_config.from_file(args.config_path)
+        model_config = model_config.from_file(args.config_path)
+
 
     project_name = (
         "NoProp" + f"_{args.model_type.value}" + f"_{args.dataset_type.value}"

@@ -228,7 +228,7 @@ class NoPropCT(BaseNoPropModel):
             prediction_embeddings, label_embeddings, reduction="none"
         ).sum(dim=1, keepdim=True)
         sdm_loss = 0.5 * eta * (snr_gradient * mse_loss).mean()
-        kl_loss = 0.5 * (label_embeddings.pow(2).sum(dim=1)).mean()
+        kl_loss = (label_embeddings.pow(2).sum(dim=1)).mean()
 
         # compute the cross-entropy loss at step t=1
         time_steps_1 = torch.ones_like(time_steps)
@@ -239,7 +239,7 @@ class NoPropCT(BaseNoPropModel):
         logits_1, prediction_embeddings_1 = self.forward_denoise(
             src, z_t_1, time_steps_1
         )
-        ce_loss = torch_f.cross_entropy(self.classifier(prediction_embeddings_1), trg)
+        ce_loss = torch_f.cross_entropy(torch_f.softmax(self.classifier(prediction_embeddings_1), dim=1), trg)
 
         # total loss is a combination of cross-entropy, KL divergence, and SDM loss
         wandb.log(
