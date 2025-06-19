@@ -4,7 +4,7 @@
     "optimiser": "AdamW",
     "learning_rate": 0.001,
     "weight_decay": 0.001,
-    "number_of_timesteps": 10,
+    "number_of_timesteps": 100,
     "eta": 0.1,
     "model_type": "NO_PROP_DT",
     "backbone_resnet_type": "RESNET18",
