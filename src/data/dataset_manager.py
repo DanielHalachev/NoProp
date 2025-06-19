@@ -4,12 +4,14 @@ from pathlib import Path
 from torch.utils.data import Dataset
 
 from src.data.mnist_dataset import MNISTDatasetManager
+from src.data.medmnist_dataset import MedMNISTDatasetManager 
 from src.data.cifar100_dataset import CIFAR100DatasetManager
 
 
 # TODO add a big dataset
 class DatasetType(Enum):
     MNIST = "MNIST"
+    MEDMNIST = "MEDMNIST"  
     CIFAR100 = "CIFAR100"
     CUSTOM = "CUSTOM"
 
@@ -33,6 +35,8 @@ class DatasetManager:
         match dataset_type:
             case DatasetType.MNIST:
                 return MNISTDatasetManager.get_datasets(data_root)
+            case DatasetType.MEDMNIST:
+                return MedMNISTDatasetManager.get_datasets(data_root)
             case DatasetType.CIFAR100:
                 return CIFAR100DatasetManager.get_datasets(data_root)
             case DatasetType.CUSTOM:

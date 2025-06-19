@@ -249,7 +249,6 @@ class NoPropDT(BaseNoPropModel):
         ).sqrt() * torch.randn_like(label_embeddings)
         logits_T, prediction_embeddings_T = self.forward_denoise(src, z_T, T)
         ce_loss = torch_f.cross_entropy(self.classifier(prediction_embeddings_T), trg)
-
         # total loss is a combination of cross-entropy, KL divergence, and SDM loss
         total_loss = ce_loss + kl_loss + sdm_loss
 
