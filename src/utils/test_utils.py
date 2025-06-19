@@ -25,7 +25,6 @@ def test(
 
     with torch.no_grad():
         for src, trg in tqdm(dataloader):
-            total += len(trg)  # batch size
             src = src.to(wrapper.device)
             trg = trg.to(wrapper.device)
 
