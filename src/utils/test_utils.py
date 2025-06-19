@@ -29,7 +29,9 @@ def test(
             src = src.to(wrapper.device)
             trg = trg.to(wrapper.device)
 
-            correct, total, predictions = wrapper.model.test_step(src, trg)
+            correct_temp, total_temp, predictions = wrapper.model.test_step(src, trg)
+            correct += correct_temp
+            total += total_temp
 
     test_accuracy = 100 if total == 0 else (correct * 100) / total
 
