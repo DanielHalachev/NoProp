@@ -8,7 +8,7 @@ from src.models.model_type import NoPropModelType
 DEFAULTS = {
     "model_type": NoPropModelType.NO_PROP_DT,
     "backbone_resnet_type": ResNetType.RESNET50,
-    "num_classes": 10,
+    "num_classes": 100,
     "embedding_dimension": 256,
     "label_encoder_hidden_dimension": 256,
 }
@@ -77,7 +77,7 @@ class NoPropDTConfig(NoPropBaseModelConfig):
     def __init__(
         self,
         backbone_resnet_type: ResNetType = ResNetType.RESNET50,
-        num_classes: int = 10,
+        num_classes: int = 100,
         embedding_dimension: int = 256,
         label_encoder_hidden_dimension: int = 256,
         number_of_timesteps: int = 10,
