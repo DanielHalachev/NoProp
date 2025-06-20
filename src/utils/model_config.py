@@ -29,7 +29,7 @@ class NoPropBaseModelConfig(ABC):
         self,
         model_type: NoPropModelType = NoPropModelType.NO_PROP_DT,
         backbone_resnet_type: ResNetType = ResNetType.RESNET50,
-        num_classes: int = 10,
+        num_classes: int = 100,
         embedding_dimension: int = 256,
         label_encoder_hidden_dimension: int = 256,
     ) -> None:

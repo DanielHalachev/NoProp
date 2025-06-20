@@ -31,7 +31,7 @@ class NoPropTrainConfig:
         dataset_type: DatasetType,
         dataset_path: Path,
         batch_size: int = 128,
-        epochs: int = 100,
+        epochs: int = 150,
         learning_rate: float = 1e-3,
         weight_decay: float = 1e-3,
         use_scheduler: bool = False,
