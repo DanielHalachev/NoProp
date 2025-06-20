@@ -54,6 +54,7 @@ def train(
 
     total_epochs = wrapper.train_config.epochs
     best_loss = float("inf")
+    best_validation_acc = 0.0
 
     with tqdm(total=total_epochs, desc="Training Progress", unit="epoch") as epoch_bar:
         for epoch in range(1, total_epochs + 1):
@@ -96,16 +97,19 @@ def train(
             )
 
             # ATTENTION:
-            # keep the best model but not on validation loss
+            # keep the best model according to accuracy
+            # but do not on validation loss
             # but on training loss, as the paper suggests
             # this is because there is no traditional backpropagation
             # we teach each block in the model to denoise an input
             # with a specific noise level instead
+            if validation_acc > best_validation_acc:
+                best_validation_acc = validation_acc
+                wrapper.save_model(wrapper.train_config.model_path)
+                wandb.save(str(Path(wrapper.train_config.model_path)))
             if train_loss < best_loss:
                 best_loss = train_loss
                 patience_counter = 0
-                wrapper.save_model(wrapper.train_config.model_path)
-                wandb.save(str(Path(wrapper.train_config.model_path)))
             else:
                 patience_counter += 1
             if patience_counter >= wrapper.train_config.patience:
