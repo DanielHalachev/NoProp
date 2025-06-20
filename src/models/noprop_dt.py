@@ -238,7 +238,7 @@ class NoPropDT(BaseNoPropModel):
         )  #    .sum(dim=1, keepdim=True)
 
         sdm_loss = 0.5 * eta * (snr_gradient * mse_loss).mean()
-        kl_loss = 0.5 * (label_embeddings.pow(2).sum(dim=1)).mean()
+        kl_loss = (label_embeddings.pow(2).sum(dim=1)).mean()
 
         # TODO what to pass to the CE loss function?
         # compute the cross-entropy loss at step t=T
