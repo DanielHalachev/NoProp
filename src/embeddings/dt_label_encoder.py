@@ -42,16 +42,11 @@ class DTLabelEncoder(LabelEncoder):
         :param z: Input tensor of shape [batch_size, embedding_dimension], which represents the label-embedding vector.
         :return: Output tensor of the same shape as input z.
         """
-        print(f"Форма на z в DTLabelEncoder: {z.shape}") 
         input = self.seg1(z)
-        print(f"Форма след seg1: {input.shape}")  
-
         x = input
         y = self.seg2(input)
-        print(f"Форма след seg2: {y.shape}")  
         output = x + y
         if self.hidden_dimension != self.output_dimension:
             # If the hidden dimension is not equal to the embedding dimension, we need to project it back
             output = self.project(output)
-            print(f"Форма на изхода от DTLabelEncoder: {output.shape}")
         return output
