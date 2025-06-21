@@ -127,28 +127,32 @@ def main():
 
     device = DeviceManager.get_device()
 
-    match args.model_type:
-        case NoPropModelType.NO_PROP_CT:
-            model_config = NoPropCTConfig()
-            model = NoPropCT(model_config, device)
-        case NoPropModelType.NO_PROP_DT:
-            model_config = NoPropDTConfig()
-            model = NoPropDT(model_config, device)
-        case NoPropModelType.NO_PROP_FM:
-            #     model_config = NoPropFMConfig()
-            #     model = NoPropFM(model_config, device)
-            raise NotImplementedError(f"Unsupported model type {args.model_type}")
-        case _:
-            raise NotImplementedError(f"Unsupported model type {args.model_type}")
-
     train_config = NoPropTrainConfig(
         args.save_model_path, args.dataset_type, args.dataset_path
     )
-    # optionally override the default training and model configuration with a file
-    if args.config_path:
-        train_config = train_config.from_file(args.config_path)
-        model_config = model_config.from_file(args.config_path)
 
+    match args.model_type:
+        case NoPropModelType.NO_PROP_CT:
+            model_config = NoPropCTConfig()
+            if args.config_path:
+                train_config = train_config.from_file(args.config_path)
+                model_config = model_config.from_file(args.config_path)
+            model = NoPropCT(model_config, device)
+        case NoPropModelType.NO_PROP_DT:
+            model_config = NoPropDTConfig()
+            if args.config_path:
+                train_config = train_config.from_file(args.config_path)
+                model_config = model_config.from_file(args.config_path)
+            model = NoPropDT(model_config, device)
+        case NoPropModelType.NO_PROP_FM:
+            # model_config = NoPropFMConfig()
+            # if args.config_path:
+            #     train_config = train_config.from_file(args.config_path)
+            #     model_config = model_config.from_file(args.config_path)
+            # model = NoPropFM(model_config, device)
+            raise NotImplementedError(f"Unsupported model type {args.model_type}")
+        case _:
+            raise NotImplementedError(f"Unsupported model type {args.model_type}")
 
     project_name = (
         "NoProp" + f"_{args.model_type.value}" + f"_{args.dataset_type.value}"
