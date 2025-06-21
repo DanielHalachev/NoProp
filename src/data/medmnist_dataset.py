@@ -1,9 +1,8 @@
 from pathlib import Path
-import torchvision
+import torchvision  # type:ignore
 from torch.utils.data import Dataset
 import medmnist
 from medmnist import INFO
-
 
 def repeat_channels(x):
     """
@@ -11,11 +10,11 @@ def repeat_channels(x):
     """
     return x.repeat(3, 1, 1)
 
-
-
 def identity(x):
+    """
+    Returns the input tensor unchanged.
+    """
     return x
-
 
 class MedMNISTDatasetManager:
     @classmethod
@@ -31,24 +30,29 @@ class MedMNISTDatasetManager:
         dataset_info = INFO[dataset_name]
         num_channels = dataset_info["n_channels"]
         num_classes = len(dataset_info["label"])
-        channel_transform = repeat_channels if num_channels == 1 else identity
 
         train_transform = torchvision.transforms.Compose(
             [
                 torchvision.transforms.ToTensor(),
-                torchvision.transforms.Lambda(channel_transform),
-                torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)), 
+                torchvision.transforms.Lambda(repeat_channels) if num_channels == 1 else torchvision.transforms.Lambda(identity),
+                torchvision.transforms.Normalize(
+                    (0.5920, 0.3192, 0.3927), # Mean for BLOODMNIST
+                    (0.4515, 0.5172, 0.1914) # Std for BLOODMNIST
+                ),
             ]
         )
         validation_transform = torchvision.transforms.Compose(
             [
                 torchvision.transforms.ToTensor(),
-                torchvision.transforms.Lambda(channel_transform),
-                torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                torchvision.transforms.Lambda(repeat_channels) if num_channels == 1 else torchvision.transforms.Lambda(identity),
+                torchvision.transforms.Normalize(
+                    (0.5920, 0.3192, 0.3927), # Mean for BLOODMNIST
+                    (0.4515, 0.5172, 0.1914) # Std for BLOODMNIST
+                ),
             ]
         )
 
-        size = 128  
+        size = 128
 
         dataset_class = getattr(medmnist, dataset_info["python_class"])
         
@@ -59,6 +63,7 @@ class MedMNISTDatasetManager:
             transform=train_transform,
             size=size
         )
+        train_dataset.labels = train_dataset.labels.squeeze()  
         validation_dataset = dataset_class(
             split="val",
             root=data_root,
@@ -66,6 +71,7 @@ class MedMNISTDatasetManager:
             transform=validation_transform,
             size=size
         )
+        validation_dataset.labels = validation_dataset.labels.squeeze()  
         test_dataset = dataset_class(
             split="test",
             root=data_root,
@@ -73,5 +79,6 @@ class MedMNISTDatasetManager:
             transform=validation_transform,
             size=size
         )
+        test_dataset.labels = test_dataset.labels.squeeze()  
 
         return train_dataset, validation_dataset, test_dataset, num_classes

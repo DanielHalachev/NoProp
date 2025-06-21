@@ -8,7 +8,7 @@ from src.models.model_type import NoPropModelType
 DEFAULTS = {
     "model_type": NoPropModelType.NO_PROP_DT,
     "backbone_resnet_type": ResNetType.RESNET50,
-    "num_classes": 8,
+    "num_classes": 10,
     "embedding_dimension": 256,
     "label_encoder_hidden_dimension": 256,
 }

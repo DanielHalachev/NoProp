@@ -7,7 +7,7 @@
     "number_of_timesteps": 10,
     "eta": 0.1,
     "model_type": "NO_PROP_DT",
-    "backbone_resnet_type": "RESNET18",
+    "backbone_resnet_type": "RESNET50",
     "num_classes": 8,
     "embedding_dimension": 256,
     "label_encoder_hidden_dimension": 256
