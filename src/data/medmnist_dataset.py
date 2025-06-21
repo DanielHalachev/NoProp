@@ -12,11 +12,17 @@ def repeat_channels(x):
     """
     return x.repeat(3, 1, 1)
 
+def identity(x):
+    """
+    Returns the input tensor unchanged.
+    """
+    return x
+
 
 class MedMNISTDatasetManager:
     @classmethod
     def get_datasets(
-        cls, data_root: Path, dataset_name: str = "pathmnist"
+        cls, data_root: Path, dataset_name: str = "bloodmnist"
     ) -> tuple[Dataset, Dataset, Dataset, int]:
         """
         Retrieves the MedMNIST datasets for training, validation, and testing at 128x128 resolution.
@@ -33,24 +39,21 @@ class MedMNISTDatasetManager:
         train_transform = torchvision.transforms.Compose(
             [
                 torchvision.transforms.ToTensor(),
-                # (
-                #     torchvision.transforms.Lambda(repeat_channels)
-                #     if num_channels == 1
-                #     else torchvision.transforms.Lambda(lambda x: x)
-                # ),
+                torchvision.transforms.Lambda(repeat_channels) if num_channels == 1 else torchvision.transforms.Lambda(identity),
                 torchvision.transforms.Normalize(
-                    (0.5,) * num_channels, (0.5,) * num_channels
+                    (0.5920, 0.3192, 0.3927), # Mean for BLOODMNIST
+                    (0.4515, 0.5172, 0.1914)  # Std for BLOODMNIST
                 ),
             ]
         )
         validation_transform = torchvision.transforms.Compose(
             [
                 torchvision.transforms.ToTensor(),
-                # (
-                #     torchvision.transforms.Lambda(repeat_channels)
-                #     if num_channels == 1
-                #     else torchvision.transforms.Lambda(lambda x: x)
-                # ),
+                 torchvision.transforms.Lambda(repeat_channels) if num_channels == 1 else torchvision.transforms.Lambda(identity),
+                torchvision.transforms.Normalize(
+                    (0.5920, 0.3192, 0.3927), # Mean for BLOODMNIST
+                    (0.4515, 0.5172, 0.1914)  # Std for BLOODMNIST
+                ),
                 torchvision.transforms.Normalize(
                     (0.5,) * num_channels, (0.5,) * num_channels
                 ),
@@ -69,6 +72,8 @@ class MedMNISTDatasetManager:
             size=size,
             mmap_mode="r",
         )
+        train_dataset.labels = train_dataset.labels.squeeze()  
+
         validation_dataset = dataset_class(
             split="val",
             root=data_root,
@@ -77,6 +82,8 @@ class MedMNISTDatasetManager:
             size=size,
             mmap_mode="r",
         )
+        validation_dataset.labels = validation_dataset.labels.squeeze()
+        
         test_dataset = dataset_class(
             split="test",
             root=data_root,
@@ -85,5 +92,6 @@ class MedMNISTDatasetManager:
             size=size,
             mmap_mode="r",
         )
+        test_dataset.labels = test_dataset.labels.squeeze()  
 
         return train_dataset, validation_dataset, test_dataset, num_classes
