@@ -6,19 +6,6 @@ from medmnist import INFO
 from torch.utils.data import Dataset
 
 
-def repeat_channels(x):
-    """
-    Converts a 1-channel grayscale image to 3 channels.
-    """
-    return x.repeat(3, 1, 1)
-
-def identity(x):
-    """
-    Returns the input tensor unchanged.
-    """
-    return x
-
-
 class MedMNISTDatasetManager:
     @classmethod
     def get_datasets(
@@ -39,7 +26,6 @@ class MedMNISTDatasetManager:
         train_transform = torchvision.transforms.Compose(
             [
                 torchvision.transforms.ToTensor(),
-                torchvision.transforms.Lambda(repeat_channels) if num_channels == 1 else torchvision.transforms.Lambda(identity),
                 torchvision.transforms.Normalize(
                     (0.5920, 0.3192, 0.3927), # Mean for BLOODMNIST
                     (0.4515, 0.5172, 0.1914)  # Std for BLOODMNIST
@@ -49,13 +35,9 @@ class MedMNISTDatasetManager:
         validation_transform = torchvision.transforms.Compose(
             [
                 torchvision.transforms.ToTensor(),
-                 torchvision.transforms.Lambda(repeat_channels) if num_channels == 1 else torchvision.transforms.Lambda(identity),
                 torchvision.transforms.Normalize(
                     (0.5920, 0.3192, 0.3927), # Mean for BLOODMNIST
                     (0.4515, 0.5172, 0.1914)  # Std for BLOODMNIST
-                ),
-                torchvision.transforms.Normalize(
-                    (0.5,) * num_channels, (0.5,) * num_channels
                 ),
             ]
         )
