@@ -1,5 +1,5 @@
 from pathlib import Path
-import torchvision  # type:ignore
+import torchvision
 from torch.utils.data import Dataset
 import medmnist
 from medmnist import INFO
@@ -12,9 +12,14 @@ def repeat_channels(x):
     return x.repeat(3, 1, 1)
 
 
+
+def identity(x):
+    return x
+
+
 class MedMNISTDatasetManager:
     @classmethod
-    def get_datasets(cls, data_root: Path, dataset_name: str = "pathmnist") -> tuple[Dataset, Dataset, Dataset, int]:
+    def get_datasets(cls, data_root: Path, dataset_name: str = "bloodmnist") -> tuple[Dataset, Dataset, Dataset, int]:
         """
         Retrieves the MedMNIST datasets for training, validation, and testing at 128x128 resolution.
 
@@ -26,27 +31,24 @@ class MedMNISTDatasetManager:
         dataset_info = INFO[dataset_name]
         num_channels = dataset_info["n_channels"]
         num_classes = len(dataset_info["label"])
+        channel_transform = repeat_channels if num_channels == 1 else identity
 
         train_transform = torchvision.transforms.Compose(
             [
                 torchvision.transforms.ToTensor(),
-                torchvision.transforms.Lambda(repeat_channels) if num_channels == 1 else torchvision.transforms.Lambda(lambda x: x),
-                torchvision.transforms.Normalize(
-                    (0.5,) * num_channels, (0.5,) * num_channels
-                ),
+                torchvision.transforms.Lambda(channel_transform),
+                torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)), 
             ]
         )
         validation_transform = torchvision.transforms.Compose(
             [
                 torchvision.transforms.ToTensor(),
-                torchvision.transforms.Lambda(repeat_channels) if num_channels == 1 else torchvision.transforms.Lambda(lambda x: x),
-                torchvision.transforms.Normalize(
-                    (0.5,) * num_channels, (0.5,) * num_channels
-                ),
+                torchvision.transforms.Lambda(channel_transform),
+                torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             ]
         )
 
-        size = 128
+        size = 128  
 
         dataset_class = getattr(medmnist, dataset_info["python_class"])
         

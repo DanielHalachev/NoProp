@@ -8,7 +8,7 @@
     "eta": 1,
     "model_type": "NO_PROP_CT",
     "backbone_resnet_type": "RESNET18",
-    "num_classes": 9,
+    "num_classes": 8,
     "embedding_dimension": 256,
     "label_encoder_hidden_dimension": 256,
     "time_encoder_hidden_dimension": 64
