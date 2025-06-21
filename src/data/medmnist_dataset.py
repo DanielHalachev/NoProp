@@ -1,8 +1,9 @@
 from pathlib import Path
-import torchvision  # type:ignore
-from torch.utils.data import Dataset
+
 import medmnist
+import torchvision  # type:ignore
 from medmnist import INFO
+from torch.utils.data import Dataset
 
 
 def repeat_channels(x):
@@ -14,7 +15,9 @@ def repeat_channels(x):
 
 class MedMNISTDatasetManager:
     @classmethod
-    def get_datasets(cls, data_root: Path, dataset_name: str = "pathmnist") -> tuple[Dataset, Dataset, Dataset, int]:
+    def get_datasets(
+        cls, data_root: Path, dataset_name: str = "pathmnist"
+    ) -> tuple[Dataset, Dataset, Dataset, int]:
         """
         Retrieves the MedMNIST datasets for training, validation, and testing at 128x128 resolution.
 
@@ -30,7 +33,11 @@ class MedMNISTDatasetManager:
         train_transform = torchvision.transforms.Compose(
             [
                 torchvision.transforms.ToTensor(),
-                torchvision.transforms.Lambda(repeat_channels) if num_channels == 1 else torchvision.transforms.Lambda(lambda x: x),
+                # (
+                #     torchvision.transforms.Lambda(repeat_channels)
+                #     if num_channels == 1
+                #     else torchvision.transforms.Lambda(lambda x: x)
+                # ),
                 torchvision.transforms.Normalize(
                     (0.5,) * num_channels, (0.5,) * num_channels
                 ),
@@ -39,7 +46,11 @@ class MedMNISTDatasetManager:
         validation_transform = torchvision.transforms.Compose(
             [
                 torchvision.transforms.ToTensor(),
-                torchvision.transforms.Lambda(repeat_channels) if num_channels == 1 else torchvision.transforms.Lambda(lambda x: x),
+                # (
+                #     torchvision.transforms.Lambda(repeat_channels)
+                #     if num_channels == 1
+                #     else torchvision.transforms.Lambda(lambda x: x)
+                # ),
                 torchvision.transforms.Normalize(
                     (0.5,) * num_channels, (0.5,) * num_channels
                 ),
@@ -49,27 +60,30 @@ class MedMNISTDatasetManager:
         size = 128
 
         dataset_class = getattr(medmnist, dataset_info["python_class"])
-        
+
         train_dataset = dataset_class(
             split="train",
             root=data_root,
             download=True,
             transform=train_transform,
-            size=size
+            size=size,
+            mmap_mode="r",
         )
         validation_dataset = dataset_class(
             split="val",
             root=data_root,
             download=True,
             transform=validation_transform,
-            size=size
+            size=size,
+            mmap_mode="r",
         )
         test_dataset = dataset_class(
             split="test",
             root=data_root,
             download=True,
             transform=validation_transform,
-            size=size
+            size=size,
+            mmap_mode="r",
         )
 
         return train_dataset, validation_dataset, test_dataset, num_classes
